@@ -16,7 +16,22 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
 contract Raffle is VRFConsumerBaseV2Plus {
     /*Errors*/
     error Raffle__NotEnoughETHEntered(); // A good practice to start error names with contract name
+    error Raffle__TransferFailed();
+    error Raffle__TimeNotPassed();
+    error Raffle__NotOpen();
+    error Raffle__UpKeepNotNeeded(
+        uint256 currentBalance,
+        uint256 numPlayers,
+        uint256 raffleState
+    );
 
+    /* Type Declarations */
+    enum RaffleState {
+        OPEN,
+        CALCULATING
+    }
+
+    /* State Variables*/
     uint16 private constant REQUEST_CONFIRMATIONS = 3; // Number of confirmations to wait before fulfilling the request
     uint32 private constant NUM_WORDS = 1;
     uint256 private immutable I_ENTRANCE_FEE;
@@ -26,9 +41,14 @@ contract Raffle is VRFConsumerBaseV2Plus {
     uint32 private immutable I_CALLBACK_GAS_LIMIT; // Gas limit for the callback function.
     address payable[] private s_players; // Since it's a storage variable.
     uint256 private s_lastTimeStamp;
+    address private s_recentWinner;
+    RaffleState private s_raffleState;
 
     /* Events*/
+    // 1. Make migration easier
+    // 2. Better Indexing
     event RaffleEntered(address indexed player);
+    event WinnerPicked(address indexed winner);
 
     constructor(
         uint256 entranceFee,
@@ -41,31 +61,64 @@ contract Raffle is VRFConsumerBaseV2Plus {
         // We are passing vrfCoordinator from our constructor to the parent(VRFConsumerBaseV2Plus) contract constructor
         I_ENTRANCE_FEE = entranceFee;
         I_INTERVAL = interval;
-        s_lastTimeStamp = block.timestamp;
         I_KEY_HASH = gasLane;
         I_SUBSCRIPTION_ID = subscriptionId;
         I_CALLBACK_GAS_LIMIT = callbackGasLimit;
+
+        s_lastTimeStamp = block.timestamp;
+        s_raffleState = RaffleState.OPEN;
     }
 
     function enterRaffle() external payable {
         if (msg.value < I_ENTRANCE_FEE) {
             revert Raffle__NotEnoughETHEntered();
         }
-        s_players.push(payable(msg.sender));
+        if (s_raffleState != RaffleState.OPEN) {
+            revert Raffle__NotOpen();
+        }
 
-        // 1. Make migration easier
-        // 2. Better Indexing
+        s_players.push(payable(msg.sender));
         emit RaffleEntered(msg.sender);
+    }
+
+    // When should we pick a winner?
+    /**
+     * @dev This is the function that the Chainlink Keeper nodes call
+     * they look for the `upKeepNeeded` to return true. The following should be true in order to return true:
+     * 1. The time interval has passed between raffle runs.
+     * 2. The raffle is in an "open" state.
+     * 3. The contract has ETH.
+     * 4. Implicitly, your subscription is funded with LINK.
+     * @param - ignored
+     * @return upKeepNeeded - true if it's time restart the lottery
+     * @return - ignored
+     */
+    function checkUpKeep(
+        bytes memory /*checkData*/
+    ) public view returns (bool upKeepNeeded, bytes memory /* performData */) {
+        // upKeepNeeded is by default false
+        bool timeHasPassed = ((block.timestamp - s_lastTimeStamp) >=
+            I_INTERVAL);
+        bool isOpen = (s_raffleState == RaffleState.OPEN);
+        bool hasBalance = address(this).balance > 0;
+        bool hasPlayers = s_players.length > 0;
+        upKeepNeeded = (timeHasPassed && isOpen && hasBalance && hasPlayers);
+        return (upKeepNeeded, "0x0");
     }
 
     // 1. Get a random number.
     // 2. Pick the player associated to that random number.
     // 3. Be automatically called
-    function pickWinner() external {
-        if ((block.timestamp - s_lastTimeStamp) < I_INTERVAL) {
-            // Checking required time has passed?
-            revert();
+    function performUpKeep(bytes calldata /* performData */) external {
+        (bool upKeepNeeded, ) = checkUpKeep("");
+        if (!upKeepNeeded) {
+            revert Raffle__UpKeepNotNeeded(
+                address(this).balance,
+                s_players.length,
+                uint256(s_raffleState)
+            );
         }
+        s_raffleState = RaffleState.CALCULATING;
         VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient
             .RandomWordsRequest({
                 keyHash: I_KEY_HASH,
@@ -82,10 +135,29 @@ contract Raffle is VRFConsumerBaseV2Plus {
         uint256 requestId = s_vrfCoordinator.requestRandomWords(request); // now(after specifying in our constructor) we can access s_vrfCoordinator from VRFConsumerBaseV2Plus
     }
 
+    // CEI: Checks-Effects-Interactions Pattern
     function fulfillRandomWords(
         uint256 requestId,
         uint256[] calldata randomWords
-    ) internal override {}
+    ) internal override {
+        //Checks
+        /*In this function there isn't any checks yet*/
+
+        //Effects (Internal contract state changes)
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[indexOfWinner];
+        s_recentWinner = recentWinner;
+        s_raffleState = RaffleState.OPEN; // State Change
+        s_players = new address payable[](0); // Resetting the players array
+        s_lastTimeStamp = block.timestamp; // Resetting the clock
+        emit WinnerPicked(s_recentWinner);
+
+        //Interactions (External contract calls)
+        (bool success, ) = recentWinner.call{value: address(this).balance}(""); //Transferring entire contract balance to the recent winner
+        if (!success) {
+            revert Raffle__TransferFailed();
+        }
+    }
 
     /* View / Pure functions */
     function getEntranceFee() external view returns (uint256) {
