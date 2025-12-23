@@ -3,6 +3,11 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
-remappings = ["@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/"]
+remappings = ["@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/",
+"@solmate/=lib/solmate/src/"]
+
+# Enable optimizer to reduce contract bytecode size for deployment
+optimizer = true
+optimizer-runs = 200
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
