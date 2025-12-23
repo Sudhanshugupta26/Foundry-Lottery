@@ -60,7 +60,7 @@ contract HelperConfig is Script, CodeConstants {
                 vrfCoordinator: 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B, // got from https://docs.chain.link/vrf/v2-5/supported-networks : Ethereum Sepolia
                 gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae, // got from https://docs.chain.link/vrf/v2-5/supported-networks : Ethereum Sepolia
                 callbackGasLimit: 500000,
-                subscriptionId: 26645136562742462482258419380404522071434118092322886514068121516117686223447,
+                subscriptionId: 51702603146169131574161030980304687201610898994480249256831417009252162976160,
                 link: 0x779877A7B0D9E8603169DdbD7836e478b4624789
             });
     }
