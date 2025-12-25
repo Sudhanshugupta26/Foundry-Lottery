@@ -96,5 +96,9 @@ cast send <RAFFLE_CONTRACT_ADDRESS> "enterRaffle()" --value <ENTRANCE_FEE_IN_WEI
 Replace `<RAFFLE_CONTRACT_ADDRESS>`, `<ENTRANCE_FEE_IN_WEI>`, and `<YOUR_PRIVATE_KEY>` with the appropriate values.
 
 ---
-
-This `README.md` provides a comprehensive overview of the Foundry Lottery project, including its functionality, setup instructions, and usage commands.
+<p align="center">
+  <img src="https://img.shields.io/badge/Solidity-363636?style=for-the-badge&logo=solidity" />
+  <img src="https://img.shields.io/badge/Foundry-000000?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Chainlink-375BD2?style=for-the-badge&logo=chainlink" />
+  <img src="https://img.shields.io/badge/Ethereum-3C3C3D?style=for-the-badge&logo=ethereum" />
+</p>
