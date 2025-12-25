@@ -4,9 +4,13 @@ pragma solidity 0.8.19;
 import {Script} from "forge-std/Script.sol";
 import {Raffle} from "../src/Raffle.sol";
 import {HelperConfig} from "../script/HelperConfig.s.sol";
-import {CreateSubscription} from "./Interactions.s.sol";
+import {CreateSubscription, FundSubscription, AddConsumer} from "./Interactions.s.sol";
 
 contract DeployRaffle is Script {
+    function run() external {
+        deployRaffle();
+    }
+
     function deployRaffle() public returns (Raffle, HelperConfig) {
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory networkConfig = helperConfig
@@ -19,13 +23,21 @@ contract DeployRaffle is Script {
                 networkConfig.subscriptionId,
                 networkConfig.vrfCoordinator
             ) = createSubscription.createSubscription(
-                networkConfig.vrfCoordinator
+                networkConfig.vrfCoordinator,
+                networkConfig.account
             );
 
             //Fund the subscription
+            FundSubscription fundSubscription = new FundSubscription();
+            fundSubscription.fundSubscription(
+                networkConfig.vrfCoordinator,
+                networkConfig.subscriptionId,
+                networkConfig.link,
+                networkConfig.account
+            );
         }
 
-        vm.startBroadcast();
+        vm.startBroadcast(networkConfig.account);
         Raffle raffle = new Raffle(
             networkConfig.entranceFee,
             networkConfig.interval,
@@ -35,12 +47,15 @@ contract DeployRaffle is Script {
             networkConfig.callbackGasLimit
         );
         vm.stopBroadcast();
-        return (raffle, helperConfig);
-    }
 
-    function run() external {
-        vm.startBroadcast();
-        // Deploy Raffle contract here
-        vm.stopBroadcast();
+        AddConsumer addConsumer = new AddConsumer(); // It will automatically add the consumer if not present
+        addConsumer.addConsumer(
+            address(raffle),
+            networkConfig.vrfCoordinator,
+            networkConfig.subscriptionId,
+            networkConfig.account
+        );
+
+        return (raffle, helperConfig);
     }
 }

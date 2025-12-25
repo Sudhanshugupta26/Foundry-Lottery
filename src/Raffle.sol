@@ -49,6 +49,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // 2. Better Indexing
     event RaffleEntered(address indexed player);
     event WinnerPicked(address indexed winner);
+    event RequestedRaffleWinner(uint256 indexed requestId);
 
     constructor(
         uint256 entranceFee,
@@ -133,6 +134,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
             });
 
         uint256 requestId = s_vrfCoordinator.requestRandomWords(request); // now(after specifying in our constructor) we can access s_vrfCoordinator from VRFConsumerBaseV2Plus
+        emit RequestedRaffleWinner(requestId);
     }
 
     // CEI: Checks-Effects-Interactions Pattern
@@ -170,5 +172,17 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
     function getPlayer(uint256 index) external view returns (address) {
         return s_players[index];
+    }
+
+    function getLastTimeStamp() public view returns (uint256) {
+        return s_lastTimeStamp;
+    }
+
+    function getRecentWinner() public view returns (address) {
+        return s_recentWinner;
+    }
+
+    function getNumberOfPlayers() public view returns (uint256) {
+        return s_players.length;
     }
 }
