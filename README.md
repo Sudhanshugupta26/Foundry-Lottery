@@ -35,8 +35,8 @@ The core of the project is the `Raffle.sol` smart contract, which implements a d
 
 1.  Clone the repository:
     ```bash
-    git clone <YOUR_REPO_URL>
-    cd Foundry\ Lottery
+    git clone https://github.com/Sudhanshugupta26/Foundry-Lottery
+    cd Foundry-Lottery
     ```
 
 2.  Install the dependencies:
